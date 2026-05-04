@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for matplotlib
+
 import pytest
 from fastapi.testclient import TestClient
 

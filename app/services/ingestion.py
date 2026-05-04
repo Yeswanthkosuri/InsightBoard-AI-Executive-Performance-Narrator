@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from io import BytesIO
 import logging
+import math
 
 import pandas as pd
 from pydantic import TypeAdapter, ValidationError
@@ -75,7 +76,7 @@ class CSVIngestionService:
             raise
 
         validated_frame = pd.DataFrame(record.model_dump() for record in records)
-        validated_frame["date"] = pd.to_datetime(validated_frame["date"], errors="coerce")
+        validated_frame["date"] = validated_frame["date"].apply(self._parse_flexible_date)
         validated_frame["metric_name"] = validated_frame["metric_name"].map(self._normalize_metric_name)
         validated_frame["value"] = pd.to_numeric(validated_frame["value"], errors="coerce")
 
@@ -204,7 +205,8 @@ class CSVIngestionService:
             )
 
     def _validate_records(self, frame: pd.DataFrame) -> list[KPIRecordInput]:
-        raw_records = frame.where(pd.notna(frame), None).to_dict(orient="records")
+        # Replace NaN with None for proper Pydantic validation
+        raw_records = frame.astype(object).where(pd.notna(frame), None).to_dict(orient="records")
         try:
             return self.RECORD_ADAPTER.validate_python(raw_records)
         except ValidationError as exc:
@@ -302,3 +304,27 @@ class CSVIngestionService:
     @staticmethod
     def _normalize_metric_name(metric_name: str) -> str:
         return metric_name.strip().lower().replace(" ", "_")
+
+    @staticmethod
+    def _parse_flexible_date(date_val: str | None) -> pd.Timestamp | None:
+        """Parse dates in multiple formats, returning Timestamp or NaT for unparseable values."""
+        if date_val is None or (isinstance(date_val, str) and date_val.strip() == ''):
+            return pd.NaT
+
+        try:
+            date_str = str(date_val).strip()
+            # Try standard pandas parsing first (handles ISO, US, EU formats)
+            parsed = pd.to_datetime(date_str, errors='coerce')
+            if not pd.isna(parsed):
+                return parsed
+
+            # Try common alternative formats
+            for fmt in ['%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y', '%m/%d/%Y', '%Y/%m/%d', '%d-%m-%y', '%m-%d-%y']:
+                try:
+                    parsed = pd.to_datetime(date_str, format=fmt)
+                    return parsed
+                except (ValueError, TypeError):
+                    continue
+            return pd.NaT
+        except Exception:
+            return pd.NaT

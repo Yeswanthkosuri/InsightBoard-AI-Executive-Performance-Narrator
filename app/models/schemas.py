@@ -97,6 +97,31 @@ class ChartExplanation(BaseModel):
     summary: str
 
 
+class TrendExplanation(BaseModel):
+    """Explanation of metric trend contradictions and mean vs latest gaps."""
+    brief: str  # e.g., "Latest rebounded 15% above average"
+    mean_vs_latest_gap: float  # Percent difference between latest and mean
+    reason: str  # Detailed explanation of the gap
+    regime_shift: bool = False  # Whether a regime shift was detected
+
+
+class CorrelationPair(BaseModel):
+    """A correlation relationship between two metrics."""
+    metric_a: str
+    metric_b: str
+    correlation_strength: float  # -1.0 to 1.0 (Pearson correlation)
+    relationship_type: Literal["positive", "negative"]  # "positive" or "negative"
+    lag_periods: int = 0  # 0 if concurrent, >0 if metric_a leads, <0 if metric_a lags
+    interpretation: str  # Human-readable description of the relationship
+
+
+class CorrelationInsight(BaseModel):
+    """Aggregated correlation analysis results."""
+    pairs: list[CorrelationPair]  # Strong correlation pairs (>0.7 or <-0.7)
+    dominant_drivers: list[str]  # Metrics that correlate with many others
+    counter_indicators: list[CorrelationPair]  # Negative correlations
+
+
 class NarrativeSections(BaseModel):
     summary: str
     trend_narrative: list[str] = Field(default_factory=list)
@@ -111,15 +136,12 @@ class LLMNarrativeResponse(BaseModel):
         validation_alias=AliasChoices("executive_summary", "summary"),
     )
     trend_analysis: list[str] = Field(
-        default_factory=list,
         validation_alias=AliasChoices("trend_analysis", "trend_narrative"),
     )
     anomaly_explanation: list[str] = Field(
-        default_factory=list,
         validation_alias=AliasChoices("anomaly_explanation", "anomaly_commentary"),
     )
     action_items: list[str] = Field(
-        default_factory=list,
         validation_alias=AliasChoices("action_items", "recommended_actions"),
     )
 

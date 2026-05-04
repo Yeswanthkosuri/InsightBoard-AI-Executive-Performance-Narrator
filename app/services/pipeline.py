@@ -1,4 +1,5 @@
 import base64
+import logging
 from datetime import datetime, timezone
 
 from app.core.config import get_settings
@@ -11,6 +12,9 @@ from app.services.ingestion import CSVIngestionService
 from app.services.llm import build_llm_client
 from app.services.narrative import NarrativeGenerator
 from app.services.visualization import DataVisualizationService
+
+
+logger = logging.getLogger(__name__)
 
 
 class ReportPipeline:
@@ -56,16 +60,17 @@ class ReportPipeline:
             else None
         )
         prompt_chart_mime_type = chart_image_mime_type or "image/png"
-        if prompt_chart_image_bytes is None and anomalies:
-            try:
-                prompt_chart_image_bytes, prompt_chart_base64 = self.visualization_service.generate_multiplot_dashboard(
+        if not prompt_chart_image_bytes:
+            # Generate chart — do NOT catch exceptions here so failures are
+            # visible in the uvicorn terminal and the API returns a real error.
+            prompt_chart_image_bytes, prompt_chart_base64 = (
+                self.visualization_service.generate_executive_dashboard(
                     dataset=dataset,
+                    metric_snapshots=metric_snapshots,
                     anomalies=anomalies,
                 )
-                prompt_chart_mime_type = "image/png"
-            except ValueError:
-                prompt_chart_image_bytes = None
-                prompt_chart_base64 = None
+            )
+            prompt_chart_mime_type = "image/png"
 
         chart_explanation = self.chart_explainer.explain(
             metric_snapshots=metric_snapshots,
@@ -99,6 +104,8 @@ class ReportPipeline:
             trend_narrative=narrative.trend_narrative,
             anomaly_commentary=narrative.anomaly_commentary,
             chart_explanation=chart_explanation,
+            chart_base64=prompt_chart_base64,
+            chart_mime_type=prompt_chart_mime_type if prompt_chart_base64 is not None else None,
             recommended_actions=narrative.recommended_actions,
         )
 

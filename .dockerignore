@@ -1,12 +1,41 @@
+# Git
 .git
 .gitignore
-.venv
+
+# Python
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
 .pytest_cache
-.mypy_cache
-.ruff_cache
 .coverage
-htmlcov
-dist
-build
-*.egg-info
+htmlcov/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/
+
+# Misc
+*.log
+*.tmp
+.editorconfig

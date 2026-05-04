@@ -44,8 +44,8 @@ async def _generate_report_impl(
     if not csv_bytes:
         raise HTTPException(status_code=400, detail="CSV upload is empty.")
 
-    chart_bytes = await chart_image.read() if chart_image is not None else None
-    chart_mime_type = chart_image.content_type if chart_image is not None else None
+    chart_bytes = await chart_image.read() if chart_image and chart_image.size > 0 else None
+    chart_mime_type = chart_image.content_type if chart_bytes else None
     pipeline = build_report_pipeline()
 
     try:

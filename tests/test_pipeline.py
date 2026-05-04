@@ -16,6 +16,8 @@ def test_report_pipeline_generates_summary(sample_csv_bytes: bytes) -> None:
     assert result.preprocessing_summary.aggregation_granularity == "monthly"
     assert result.metric_snapshots
     assert result.executive_summary
+    assert result.chart_base64 is not None
+    assert result.chart_mime_type == "image/png"
     assert result.recommended_actions
 
 
@@ -33,7 +35,24 @@ def test_report_endpoint_accepts_csv_upload(client, sample_csv_bytes: bytes) -> 
     assert body["records_analyzed"] == 36
     assert body["periods_analyzed"] == 6
     assert body["preprocessing_summary"]["aggregation_granularity"] == "monthly"
+    assert body["chart_base64"] is not None
+    assert body["chart_mime_type"] == "image/png"
     assert len(body["metric_snapshots"]) >= 1
+
+
+def test_generate_report_public_endpoint_accepts_csv_upload(client, sample_csv_bytes: bytes) -> None:
+    response = client.post(
+        "/api/v1/generate-report",
+        data={"report_title": "Board KPI Summary"},
+        files={"csv_file": ("monthly_kpis.csv", sample_csv_bytes, "text/csv")},
+    )
+
+    body = response.json()
+
+    assert response.status_code == 201
+    assert body["report_title"] == "Board KPI Summary"
+    assert body["chart_base64"] is not None
+    assert body["chart_mime_type"] == "image/png"
 
 
 def test_report_endpoint_rejects_invalid_contract(client) -> None:
@@ -84,3 +103,20 @@ def test_report_endpoint_accepts_preprocessing_options(client, dirty_daily_csv_b
     assert response.status_code == 201
     assert body["preprocessing_summary"]["aggregation_granularity"] == "weekly"
     assert body["preprocessing_summary"]["missing_value_strategy"] == "forward_fill"
+
+
+def test_generate_report_returns_uploaded_chart_base64(client, sample_csv_bytes: bytes) -> None:
+    response = client.post(
+        "/api/v1/generate-report",
+        data={"report_title": "Board KPI Summary"},
+        files={
+            "csv_file": ("monthly_kpis.csv", sample_csv_bytes, "text/csv"),
+            "chart_image": ("chart.png", b"fake-chart", "image/png"),
+        },
+    )
+
+    body = response.json()
+
+    assert response.status_code == 201
+    assert body["chart_base64"] == "ZmFrZS1jaGFydA=="
+    assert body["chart_mime_type"] == "image/png"

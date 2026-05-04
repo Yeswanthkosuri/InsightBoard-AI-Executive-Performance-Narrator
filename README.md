@@ -9,6 +9,8 @@ The project is now through:
 - **Phase 1: System Architecture & Data Modeling**
 - **Phase 2: Data Ingestion & Preprocessing (Pandas)**
 - **Phase 6: Multimodal LLM Integration**
+- **Phase 10: Frontend Implementation**
+- **Phase 11: Deployment & Containerization**
 
 The repository now enforces a canonical long-format CSV contract and preprocesses real-world KPI time series before analytics and narrative generation.
 
@@ -37,6 +39,7 @@ This first version gives you a strong backend scaffold rather than a finished AI
 - trend-based narrative generation,
 - chart explanation placeholder for future multimodal model support,
 - optional OpenAI Responses API and Gemini SDK adapters for multimodal narration,
+- vanilla HTML/CSS/JS frontend served directly by FastAPI,
 - test fixtures and baseline pytest coverage,
 - Docker-ready packaging.
 
@@ -97,6 +100,10 @@ pytest
 
 `POST /api/v1/reports/generate`
 
+Also available as:
+
+`POST /api/v1/generate-report`
+
 Multipart form fields:
 
 - `csv_file`: required CSV upload
@@ -153,11 +160,27 @@ date,metric_name,value
 
 ## Suggested next milestones
 
-1. Add a real LLM provider adapter in `app/services/llm.py`.
-2. Introduce model-specific prompt templates and evaluation datasets.
-3. Add multimodal chart parsing with a vision-capable API.
-4. Persist generated reports and feedback for iteration loops.
-5. Add auth, observability, background jobs, and production deployment manifests.
+1. Add authentication, audit logging, and request tracing.
+2. Persist generated reports and user feedback for iteration loops.
+3. Add background job execution for long-running report requests.
+4. Expand evaluation datasets and regression tests for narrative quality.
+5. Add production infrastructure manifests for your target cloud environment.
+
+## Frontend
+
+The app now serves a lightweight frontend at:
+
+```text
+GET /
+```
+
+It provides:
+
+- CSV upload and optional chart upload
+- persona, aggregation, and missing-value controls
+- loading and error states
+- dynamic rendering of executive summary, anomalies, actions, and trend narrative
+- direct display of returned Base64 chart images
 
 ## Multimodal providers
 
@@ -181,6 +204,61 @@ When a chart image is available, the app now forwards it with the prompt:
 
 - OpenAI: as an `input_image` part using a `data:image/...;base64,...` URL
 - Gemini: as an image part using inline Base64-backed bytes
+
+## Deployment
+
+### Environment file
+
+Create a real `.env` from the example:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Populate the provider secrets you want to use:
+
+```text
+INSIGHTBOARD_DEFAULT_LLM_PROVIDER=openai
+INSIGHTBOARD_OPENAI_API_KEY=your_real_key
+```
+
+or
+
+```text
+INSIGHTBOARD_DEFAULT_LLM_PROVIDER=gemini
+INSIGHTBOARD_GEMINI_API_KEY=your_real_key
+```
+
+### Docker build
+
+```powershell
+docker build -t insightboard-ai .
+```
+
+### Docker run
+
+```powershell
+docker run --env-file .env -p 8000:8000 insightboard-ai
+```
+
+The production container uses:
+
+- a multi-stage `Dockerfile`
+- `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- non-root runtime user
+- runtime image system libraries for Matplotlib and Pillow-backed image handling
+
+### Docker Compose
+
+```powershell
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:8000/
+```
 
 ## Tech stack
 

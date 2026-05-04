@@ -1,6 +1,6 @@
 import numpy as np
 
-from app.models.schemas import MetricSnapshot
+from app.models.schemas import MetricSnapshot, TrendExplanation
 from app.services.ingestion import DatasetBundle
 
 
